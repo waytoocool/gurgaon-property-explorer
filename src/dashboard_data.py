@@ -53,6 +53,7 @@ def compile_dashboard_payload(db_path: str = "rentals.db", min_photos: Optional[
         FROM consolidated_listings
         WHERE (audit_anomaly_tag IS NULL 
            OR audit_anomaly_tag NOT IN ('MIS_PINNED_LOCATION', 'DATA_ENTRY_ERROR', 'FLATMATE_AD'))
+          AND (is_flatmate_listing IS NULL OR is_flatmate_listing = 0)
     """
     params = []
     if min_photos is not None and min_photos > 0:

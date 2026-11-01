@@ -12,9 +12,14 @@ Implements statutory multi-tier spatial and area verification for the GMDA Maste
 
 import os
 import json
+import math
 from typing import Dict, Any, List, Tuple
 from shapely.geometry import shape, Polygon, MultiPolygon, mapping
 from shapely.ops import unary_union
+
+# Projected conversion factor from square degrees to sq km at Gurgaon latitude (28.45 deg N)
+# 1 deg lat = 111.0 km, 1 deg lon = 111.0 * cos(28.45 deg) = 97.60 km
+SQ_DEG_TO_SQKM = 111.0 * (111.0 * math.cos(math.radians(28.45)))
 
 def audit_sector_boundaries(geojson_path: str = "config/gurgaon_sectors.geojson") -> Dict[str, Any]:
     """
@@ -33,7 +38,7 @@ def audit_sector_boundaries(geojson_path: str = "config/gurgaon_sectors.geojson"
         props = f.get("properties", {})
         s_name = props.get("sector_name") or props.get("name") or f"Feature_{i}"
         geom = shape(f["geometry"])
-        area_sqkm = geom.area * (111.0 ** 2)
+        area_sqkm = geom.area * SQ_DEG_TO_SQKM
         shapes.append((s_name, geom, round(area_sqkm, 4)))
 
     total_features = len(shapes)
@@ -47,7 +52,7 @@ def audit_sector_boundaries(geojson_path: str = "config/gurgaon_sectors.geojson"
         for j in range(i + 1, total_features):
             n2, s2, _ = shapes[j]
             inter = s1.intersection(s2)
-            inter_area = inter.area * (111.0 ** 2)
+            inter_area = inter.area * SQ_DEG_TO_SQKM
             if inter_area > 0.001:  # threshold: 1,000 sq. meters
                 overlaps.append({
                     "sector_1": n1,
@@ -93,7 +98,7 @@ def audit_sector_boundaries(geojson_path: str = "config/gurgaon_sectors.geojson"
     for p in city_polys:
         for hole in p.interiors:
             hole_poly = Polygon(hole)
-            h_area = hole_poly.area * (111.0 ** 2)
+            h_area = hole_poly.area * SQ_DEG_TO_SQKM
             if h_area > 0.50:  # significant zones like IAF Depot, Aravalli ridges
                 open_zones.append({
                     "area_sqkm": round(h_area, 3),

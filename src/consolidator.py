@@ -397,17 +397,33 @@ class Consolidator:
         for item in normalized_items:
             matched_cluster = None
             for cl in clusters:
-                # Compare against the first item in cluster
-                if self._matches_5_point_fingerprint(cl[0], item):
-                    # Transitive Facing Check: candidate must not conflict with ANY member of cluster
-                    facing_conflict = False
-                    for existing in cl:
-                        if is_facing_conflicting(existing["facing"], item["facing"]):
-                            facing_conflict = True
-                            break
-                    if not facing_conflict:
-                        matched_cluster = cl
+                # 1. Compare core physical attributes against cluster representative
+                if not self._matches_5_point_fingerprint(cl[0], item):
+                    continue
+
+                # 2. Strict Cluster-Wide Built-up Area Invariant (min/max bound check)
+                # Guarantees that EVERY pair in the cluster matches within +-5% tolerance,
+                # eliminating order-dependent cluster drift.
+                sqft_item = item.get("built_up_sqft") or 0
+                if sqft_item > 0:
+                    cluster_sqfts = [x["built_up_sqft"] for x in cl if x.get("built_up_sqft") and x["built_up_sqft"] > 0]
+                    if cluster_sqfts:
+                        min_sqft = min(cluster_sqfts)
+                        max_sqft = max(cluster_sqfts)
+                        if (abs(sqft_item - min_sqft) / max(sqft_item, min_sqft)) > 0.05:
+                            continue
+                        if (abs(sqft_item - max_sqft) / max(sqft_item, max_sqft)) > 0.05:
+                            continue
+
+                # 3. Transitive Facing Check: candidate must not conflict with ANY member of cluster
+                facing_conflict = False
+                for existing in cl:
+                    if is_facing_conflicting(existing["facing"], item["facing"]):
+                        facing_conflict = True
                         break
+                if not facing_conflict:
+                    matched_cluster = cl
+                    break
             
             if matched_cluster is not None:
                 matched_cluster.append(item)
@@ -416,9 +432,26 @@ class Consolidator:
 
         print(f"[Consolidator] Identified {len(clusters)} unique physical units across Gurgaon dataset.")
 
-        # Preserve any existing manual audit anomaly tags and manual sector overrides
-        cur.execute("SELECT uid, audit_anomaly_tag, actual_sector FROM consolidated_listings WHERE audit_anomaly_tag IS NOT NULL")
-        saved_audits = {r["uid"]: dict(r) for r in cur.fetchall()}
+        # Preserve any existing manual audit anomaly tags and manual sector overrides across all constituent portal IDs
+        cur.execute("""
+            SELECT uid, nobroker_id, housing_id, acres_id, audit_anomaly_tag, actual_sector 
+            FROM consolidated_listings 
+            WHERE audit_anomaly_tag IS NOT NULL
+        """)
+        saved_audits_by_uid = {}
+        saved_audits_by_portal = {}
+        for r in cur.fetchall():
+            d = dict(r)
+            tag = d.get("audit_anomaly_tag")
+            sec = d.get("actual_sector")
+            if d.get("uid"):
+                saved_audits_by_uid[d["uid"]] = d
+            if d.get("nobroker_id"):
+                saved_audits_by_portal[("NoBroker", str(d["nobroker_id"]))] = (tag, sec)
+            if d.get("housing_id"):
+                saved_audits_by_portal[("Housing", str(d["housing_id"]))] = (tag, sec)
+            if d.get("acres_id"):
+                saved_audits_by_portal[("99acres", str(d["acres_id"]))] = (tag, sec)
 
         # Clear and rebuild consolidated_listings
         cur.execute("DELETE FROM consolidated_listings")
@@ -443,6 +476,11 @@ class Consolidator:
             total_cost = min_rent + maint
 
             sqft = primary["built_up_sqft"]
+            if not sqft or sqft <= 0:
+                for i in cl:
+                    if i.get("built_up_sqft") and i["built_up_sqft"] > 0:
+                        sqft = i["built_up_sqft"]
+                        break
             price_sqft = round(total_cost / sqft, 2) if sqft and sqft > 0 else 0.0
 
             total_flrs = primary["total_floors"]
@@ -470,10 +508,22 @@ class Consolidator:
                 primary["longitude"] = round(poly.centroid.x, 6)
 
             anomaly_tag = None
-            if uid in saved_audits:
-                anomaly_tag = saved_audits[uid].get("audit_anomaly_tag")
-                if saved_audits[uid].get("actual_sector"):
-                    actual_sec = saved_audits[uid]["actual_sector"]
+            # 1. Match by primary UID
+            if uid in saved_audits_by_uid:
+                anomaly_tag = saved_audits_by_uid[uid].get("audit_anomaly_tag")
+                if saved_audits_by_uid[uid].get("actual_sector"):
+                    actual_sec = saved_audits_by_uid[uid]["actual_sector"]
+
+            # 2. Match by any constituent portal ID (robust if primary portal changes)
+            if not anomaly_tag:
+                for member in cl:
+                    key = (member.get("portal"), str(member.get("portal_id")))
+                    if key in saved_audits_by_portal:
+                        saved_tag, saved_sec = saved_audits_by_portal[key]
+                        anomaly_tag = saved_tag
+                        if saved_sec:
+                            actual_sec = saved_sec
+                        break
 
             # Automated Anomaly Guards
             if not anomaly_tag:

@@ -135,7 +135,7 @@ Any agent modifying or extending this codebase **MUST** uphold these principles 
   * *Rule*: Verify geometric and area integrity across all official sectors through automated multi-tier checks codified in [`src/boundary_validator.py`](file:///Users/prateekgoyal/Desktop/Prateek/Claude%20Projects/Property%20Explorer/src/boundary_validator.py):
     1. *Tier 1: Pairwise Overlap Invariant*: $\text{Area}(S_i \cap S_j) < 0.001\text{ km}^2$ for all $i \neq j$ (enforcing 0.0% overlap across all 169 sectors/enclaves).
     2. *Tier 2: Physical Size Bounds Sanity Check*: $0.20\text{ km}^2 \le \text{Area} \le 6.00\text{ km}^2$, guaranteeing zero micro-slivers and zero bloated monster voids.
-    3. *Tier 3: Planned Footprint & Legitimate Open Zone Audit*: Tracks total planned urban footprint ($341.95\text{ km}^2$) and median sector size ($1.80\text{ km}^2$).
+    3. *Tier 3: Planned Footprint & Legitimate Open Zone Audit*: Tracks total planned urban footprint ($301.35\text{ km}^2$) and median sector size ($1.59\text{ km}^2$, ~392 acres).
   * *Execution*: Run `python -m src.boundary_validator` offline anytime the sector GeoJSON is updated or audited.
 
 ---
@@ -335,8 +335,8 @@ python analyze_data.py --audit-outliers --sector "Sector 43" --variance-threshol
 # 1. Citywide Full Sweep: Ingest listings across all 169 sectors dynamically using official centroids
 python run_pipeline.py --all-sectors --nb-pages 1
 
-# 2. Targeted 2 BHK Central Gurgaon Deep Sweep (Sectors 14-57, DLF phases, Golf Course Road)
-python run_pipeline.py --central-only --bhk 2 --nb-pages 3 --delay 0.25
+# 2. Targeted Sector Deep Sweep (Custom Sectors)
+python run_pipeline.py --sectors "Sector 43,Sector 56,Sector 48" --bhk 2 --nb-pages 3 --delay 0.25
 
 # 3. Custom Sector Sourcing for Specific High-Rise Hubs
 python run_pipeline.py --sectors "Sector 27,Sector 28,Sector 43,Sector 53,Sector 54,Sector 56,Sector 57,Sector 47,Sector 48,Sector 50" --bhk 2 --nb-pages 4

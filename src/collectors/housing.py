@@ -20,12 +20,15 @@ class HousingCollector:
     PROFILE_DIR = "/tmp/housing_uc_profile"
 
     @staticmethod
-    def to_bhk_url(url: str, bhk: int = 2) -> str:
-        """Converts standard Housing.com rent URL to BHK-specific URL."""
-        if bhk == 2:
-            if "/flats-for-rent-in-" in url and "-P" in url:
-                url = url.replace("/flats-for-rent-in-", "/2bhk-flats-for-rent-in-")
-                url = url.replace("-P", "-C4P")
+    def to_bhk_url(url: str, bhk: Optional[int] = None) -> str:
+        """Converts standard Housing.com rent URL to dynamic BHK-specific URL."""
+        if not bhk:
+            return url
+        # If url already has a BHK prefix like /2bhk-flats-for-rent-in-
+        if re.search(r"/\d+bhk-flats-for-rent-in-", url):
+            url = re.sub(r"/\d+bhk-flats-for-rent-in-", f"/{bhk}bhk-flats-for-rent-in-", url)
+        elif "/flats-for-rent-in-" in url:
+            url = url.replace("/flats-for-rent-in-", f"/{bhk}bhk-flats-for-rent-in-")
         return url
 
     def __init__(
@@ -36,8 +39,8 @@ class HousingCollector:
         headless: bool = False,
         bhk: Optional[int] = None
     ):
-        if bhk == 2:
-            self.target_url = self.to_bhk_url(target_url, bhk=2)
+        if bhk:
+            self.target_url = self.to_bhk_url(target_url, bhk=bhk)
         else:
             self.target_url = target_url
         self.browser_executable_path = browser_executable_path

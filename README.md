@@ -73,8 +73,8 @@ python analyze_data.py --audit-outliers
 # Ingest listings across all 169 sectors
 python run_pipeline.py --all-sectors --nb-pages 1
 
-# Deep targeted sweep on central core sectors (DLF Phase 1-5, Golf Course Rd, Sec 14-57)
-python run_pipeline.py --central-only --bhk 2 --nb-pages 3
+# Targeted custom sector sweep (DLF Phase 4, Golf Course Rd, Sec 56/48)
+python run_pipeline.py --sectors "Sector 43,Sector 56,Sector 48" --bhk 2 --nb-pages 3
 
 # Re-run deduplication and recompile dashboard without re-scraping
 python run_pipeline.py --skip-scrape

@@ -19,6 +19,7 @@ import yaml
 import os
 import json
 import time
+import math
 from typing import Dict, Any, Optional, List
 from shapely.geometry import shape
 
@@ -27,18 +28,8 @@ from src.collectors.nobroker import NoBrokerCollector
 from src.collectors.housing import HousingCollector
 from src.collectors.ninety_nine_acres import NinetyNineAcresCollector
 from src.consolidator import Consolidator
-from src.analyzer import MarketAnalyzer
 from src.dashboard_data import export_data_json
 from run_dashboard import export_standalone_html
-
-CENTRAL_SECTORS = [
-    "Sector 14", "Sector 15", "Sector 17", "Sector 18",
-    "Sector 24", "Sector 25", "Sector 26", "Sector 26A", "Sector 27", "Sector 28",
-    "Sector 29", "Sector 30", "Sector 31", "Sector 32", "Sector 38", "Sector 39",
-    "Sector 40", "Sector 41", "Sector 42", "Sector 43", "Sector 44", "Sector 45",
-    "Sector 46", "Sector 47", "Sector 48", "Sector 49", "Sector 50", "Sector 51",
-    "Sector 52", "Sector 53", "Sector 54", "Sector 55", "Sector 56", "Sector 57"
-]
 
 def load_all_geojson_sectors(geojson_path: str = "config/gurgaon_sectors.geojson") -> List[Dict[str, Any]]:
     """Loads all official sector features and computes their geographic centroids."""
@@ -50,6 +41,9 @@ def load_all_geojson_sectors(geojson_path: str = "config/gurgaon_sectors.geojson
     with open(full_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    # Conversion factor from square degrees to sq km at Gurgaon latitude (28.45 deg N)
+    sq_deg_to_sqkm = 111.0 * (111.0 * math.cos(math.radians(28.45)))
+
     sectors = []
     for feat in data.get("features", []):
         name = feat["properties"].get("sector_name") or feat["properties"].get("name")
@@ -60,7 +54,7 @@ def load_all_geojson_sectors(geojson_path: str = "config/gurgaon_sectors.geojson
             "display_name": feat["properties"].get("display_name", name),
             "lat": c.y,
             "lon": c.x,
-            "area_sqkm": geom.area * (111.0 ** 2)
+            "area_sqkm": geom.area * sq_deg_to_sqkm
         })
     return sectors
 
@@ -74,23 +68,19 @@ def load_sector_config(sector_key: str = "dlf_phase_4") -> Dict[str, Any]:
 
 def run(
     all_sectors: bool = False,
-    central_only: bool = False,
     custom_sectors: Optional[str] = None,
     bhk: Optional[int] = None,
     sector_key: str = "dlf_phase_4",
     nb_pages: int = 1,
-    housing_pages: int = 2,
+    housing_pages: int = 0,
     housing_start_page: int = 1,
     acres_pages: int = 0,
     delay_seconds: float = 0.3,
     skip_scrape: bool = False,
-    high_rise_only: bool = False,
-    max_age_days: Optional[int] = None,
-    posted_after: Optional[str] = None,
     min_photos: Optional[int] = 2
 ):
     print("=" * 75)
-    print("       GURGAON RENTAL INTELLIGENCE PIPELINE (ALL-SECTOR ENGINE)")
+    print("       GURGAON RENTAL INTELLIGENCE PIPELINE")
     print("=" * 75)
 
     # 1. Initialize DB schema
@@ -101,13 +91,10 @@ def run(
         print(f"[Target BHK]: Explicitly filtering and sourcing {bhk} BHK units (NoBroker type={nb_bhk_type})")
 
     if not skip_scrape:
-        if all_sectors or central_only or custom_sectors:
+        if all_sectors or custom_sectors:
             sectors = load_all_geojson_sectors()
             
-            if central_only:
-                sectors = [s for s in sectors if s["name"] in CENTRAL_SECTORS]
-                print(f"\n[Mode]: Central Gurgaon Sweep ({len(sectors)} Core Sectors)")
-            elif custom_sectors:
+            if custom_sectors:
                 req_names = [s.strip().lower() for s in custom_sectors.split(",")]
                 sectors = [s for s in sectors if any(rn == s["name"].lower() or rn in s["name"].lower() for rn in req_names)]
                 print(f"\n[Mode]: Custom Sector Sweep ({len(sectors)} Sectors: {[s['name'] for s in sectors]})")
@@ -155,15 +142,16 @@ def run(
             else:
                 print("\n[NoBroker]: nb_pages=0, skipping NoBroker crawl.")
 
-            # Optional Housing.com Sweep
+            # Optional Housing.com Sweep (Citywide fallback notice)
             if housing_pages > 0:
-                h_url = HousingCollector.CITYWIDE_2BHK_URL if bhk == 2 else HousingCollector.CITYWIDE_URL
-                print(f"\n[Housing.com]: Ingesting {housing_pages} page(s) starting from page {housing_start_page} ({h_url})...")
+                h_url = HousingCollector.to_bhk_url(HousingCollector.CITYWIDE_URL, bhk=bhk)
+                print(f"\n[Housing.com]: Ingesting {housing_pages} page(s) ({h_url})...")
+                print("   [Notice]: Multi-sector dynamic indexing for Housing.com is planned for dedicated phase; fetching citywide.")
                 h_collector = HousingCollector(target_url=h_url, headless=False, bhk=bhk)
                 h_result = h_collector.scrape(pages=housing_pages, start_page=housing_start_page, delay_per_page=3.5)
                 print(f"-> Housing Complete: {h_result['total_processed']} listings processed across {h_result['pages_completed']} pages.\n")
 
-            # Optional 99acres Sweep
+            # Optional 99acres Sweep (Citywide fallback notice)
             if acres_pages > 0:
                 if custom_sectors:
                     print(f"\n[99acres]: Ingesting {acres_pages} page(s) across {len(sectors)} custom sector(s)...")
@@ -175,21 +163,22 @@ def run(
                 else:
                     a_url = NinetyNineAcresCollector.CITYWIDE_2BHK_URL if bhk == 2 else NinetyNineAcresCollector.CITYWIDE_URL
                     print(f"\n[99acres]: Ingesting {acres_pages} citywide page(s) ({a_url})...")
+                    print("   [Notice]: Multi-sector dynamic indexing for 99acres is planned for dedicated phase; fetching citywide.")
                     a_collector = NinetyNineAcresCollector(target_url=a_url, bhk=bhk)
                     a_result = a_collector.scrape(pages=acres_pages, delay_per_page=3.5)
                     print(f"-> 99acres Complete: {a_result['total_processed']} listings processed across {a_result['pages_completed']} pages.\n")
         else:
             # Single Sector Mode
             sector_cfg = load_sector_config(sector_key)
-            sector_name = sector_cfg.get("name", sector_key)
-            print(f"\n[Target Sector]: {sector_name}")
+            sector_name = sector_cfg.get("primary_sector") or sector_cfg.get("name", sector_key)
+            print(f"\n[Target Sector Mode]: {sector_name} (key: {sector_key})")
 
             # Scrape NoBroker
             nb_cfg = sector_cfg.get("nobroker", {})
             nb_collector = NoBrokerCollector(
                 lat=nb_cfg.get("lat", 28.4671),
                 lon=nb_cfg.get("lon", 77.0820),
-                place_name=nb_cfg.get("place_name", "DLF Phase IV"),
+                place_name=nb_cfg.get("place_name", sector_name),
                 place_id=nb_cfg.get("place_id", ""),
                 radius=nb_cfg.get("radius", 2.5),
                 bhk_type=nb_bhk_type
@@ -197,16 +186,18 @@ def run(
             nb_result = nb_collector.scrape(start_page=1, end_page=nb_pages, delay_seconds=delay_seconds)
             print(f"-> NoBroker Complete: {nb_result['total_processed']} listings processed across {nb_result['pages_completed']} pages.\n")
 
-            # Scrape Housing.com (if URL provided)
+            # Scrape Housing.com (if URL configured for this sector)
             h_cfg = sector_cfg.get("housing", {})
             h_url = h_cfg.get("url")
-            if h_url:
-                target_h_url = HousingCollector.to_bhk_url(h_url, bhk=bhk) if bhk else h_url
+            if h_url and housing_pages > 0:
+                target_h_url = HousingCollector.to_bhk_url(h_url, bhk=bhk)
                 h_collector = HousingCollector(target_url=target_h_url, headless=False, bhk=bhk)
                 h_result = h_collector.scrape(pages=housing_pages, start_page=housing_start_page, delay_per_page=4.0)
                 print(f"-> Housing Complete: {h_result['total_processed']} listings processed across {h_result['pages_completed']} pages.\n")
+            elif housing_pages > 0:
+                print(f"[Housing.com]: No configured search URL for '{sector_key}' in sectors.yaml. Skipping Housing scrape.")
 
-            # Scrape 99acres (if requested)
+            # Scrape 99acres (if requested and configured)
             if acres_pages > 0:
                 print(f"\n[99acres]: Ingesting {acres_pages} page(s) for {sector_name}...")
                 a_collector = NinetyNineAcresCollector(sector_name=sector_name, bhk=bhk)
@@ -225,59 +216,57 @@ def run(
     export_standalone_html(min_photos=min_photos)
     print("-> Dashboard datasets recompiled successfully.\n")
 
-    # 4. Run Market Analyzer
-    print("--- Generating Market Intelligence Report ---")
-    analyzer = MarketAnalyzer()
-    analyzer.print_analysis(
-        source="consolidated",
-        gated_only=not high_rise_only,
-        min_floors=6 if high_rise_only else None,
-        max_age_days=max_age_days,
-        posted_after=posted_after,
-        min_photos=min_photos
-    )
+    # 4. Completion Summary
+    print("=" * 75)
+    print("       PIPELINE EXECUTION COMPLETE")
+    print("=" * 75)
+    print(f"✓ Unique Physical Units in DB : {cons_res['unique_physical_units']}")
+    print(f"✓ Multi-Portal Units Merged   : {cons_res['multi_portal_duplicates']}")
+    print(f"✓ Total Raw Listings Tracked  : {cons_res['total_raw_listings']}")
+    print("-" * 75)
+    print("✓ Local Dashboard  : python run_dashboard.py (http://localhost:8050)")
+    print("✓ Live Web Map     : https://waytoocool.github.io/gurgaon-property-explorer/")
+    print("✓ Standalone File  : dashboard.html (portable zero-dependency dashboard)")
+    print("=" * 75 + "\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Master Gurgaon Rental Aggregator Pipeline")
     parser.add_argument("--all-sectors", action="store_true", help="Crawl all 169 sectors dynamically using official GeoJSON centroids")
-    parser.add_argument("--central-only", action="store_true", help="Crawl only central Gurgaon core sectors (DLF phases, Sectors 14-57)")
     parser.add_argument("--sectors", type=str, default=None, help="Comma-separated sector names to crawl (e.g. 'Sector 43,Sector 56,Sector 48')")
     parser.add_argument("--bhk", type=int, default=None, help="Filter search to specific BHK count (e.g. --bhk 2 for 2-BHK specific sourcing)")
     parser.add_argument("--sector", default="dlf_phase_4", help="Single sector key defined in config/sectors.yaml")
-    parser.add_argument("--nb-pages", type=int, default=1, help="Number of NoBroker pages to fetch per sector (default: 1 for multi-sector, 3 for single)")
-    parser.add_argument("--housing-pages", type=int, default=0, help="Number of Housing.com pages to fetch (default: 0 for all-sectors, 2 for single-sector)")
+    parser.add_argument("--nb-pages", type=int, default=None, help="Number of NoBroker pages to fetch per sector (default: 1 for multi-sector, 3 for single)")
+    parser.add_argument("--housing-pages", type=int, default=None, help="Number of Housing.com pages to fetch (default: 0 for all-sectors, 2 for single-sector)")
     parser.add_argument("--housing-start-page", type=int, default=1, help="Starting page for Housing.com pagination (default: 1)")
-    parser.add_argument("--acres-pages", type=int, default=0, help="Number of 99acres pages to fetch (default: 0 for all-sectors, 2 for single-sector)")
+    parser.add_argument("--acres-pages", type=int, default=None, help="Number of 99acres pages to fetch (default: 0)")
     parser.add_argument("--delay", type=float, default=0.25, help="Polite delay between consecutive API requests (default: 0.25s)")
     parser.add_argument("--skip-scrape", action="store_true", help="Skip scraping and rerun consolidation on existing raw data")
-    parser.add_argument("--high-rise", action="store_true", help="Display only High-Rise Multi-Story Apartments (total_floors >= 6)")
-    parser.add_argument("--max-age-days", type=int, default=30, help="Filter listings active/updated within the last N days (default: 30 days)")
-    parser.add_argument("--all-time", action="store_true", help="Disable the 30-day recency filter and include all historical listings")
-    parser.add_argument("--posted-after", type=str, default=None, help="Filter listings posted/updated on or after YYYY-MM-DD")
-    parser.add_argument("--min-photos", type=int, default=2, help="Filter listings with at least N photos (default: 2)")
-    parser.add_argument("--all-photos", action="store_true", help="Include listings with zero or single static photos")
+    parser.add_argument("--min-photos", type=int, default=2, help="Filter listings with at least N photos for dashboard export (default: 2)")
+    parser.add_argument("--all-photos", action="store_true", help="Include listings with zero or single static photos in dashboard export")
     args = parser.parse_args()
 
-    max_age = None if args.all_time else args.max_age_days
     min_photos = None if args.all_photos else args.min_photos
 
-    # Set default nb_pages to 3 and housing_pages to 2 if in single-sector mode and not explicitly changed
-    is_multi_sector = args.all_sectors or args.central_only or bool(args.sectors)
-    nb_p = args.nb_pages
-    if not is_multi_sector and nb_p == 1:
-        nb_p = 3
+    is_multi_sector = args.all_sectors or bool(args.sectors)
+    
+    # Resolve page counts without clobbering explicit user values (e.g. --nb-pages 1)
+    if args.nb_pages is not None:
+        nb_p = args.nb_pages
+    else:
+        nb_p = 1 if is_multi_sector else 3
 
-    h_p = args.housing_pages
-    if not is_multi_sector and h_p == 0:
-        h_p = 2
+    if args.housing_pages is not None:
+        h_p = args.housing_pages
+    else:
+        h_p = 0 if is_multi_sector else 2
 
-    a_p = args.acres_pages
-    if not is_multi_sector and a_p == 0:
-        a_p = 2
+    if args.acres_pages is not None:
+        a_p = args.acres_pages
+    else:
+        a_p = 0
 
     run(
         all_sectors=args.all_sectors,
-        central_only=args.central_only,
         custom_sectors=args.sectors,
         bhk=args.bhk,
         sector_key=args.sector,
@@ -287,8 +276,5 @@ if __name__ == "__main__":
         acres_pages=a_p,
         delay_seconds=args.delay,
         skip_scrape=args.skip_scrape,
-        high_rise_only=args.high_rise,
-        max_age_days=max_age,
-        posted_after=args.posted_after,
         min_photos=min_photos
     )
