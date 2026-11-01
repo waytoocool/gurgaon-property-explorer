@@ -32,11 +32,7 @@ class NinetyNineAcresCollector:
         if target_url:
             self.target_url = target_url
         elif sector_name:
-            slug = self.to_sector_slug(sector_name)
-            if bhk:
-                self.target_url = f"https://www.99acres.com/{bhk}-bhk-flats-for-rent-in-{slug}-gurgaon-ffid"
-            else:
-                self.target_url = f"https://www.99acres.com/flats-for-rent-in-{slug}-gurgaon-ffid"
+            self.target_url = self.build_sector_url(sector_name, bhk=bhk)
         else:
             if bhk:
                 self.target_url = f"https://www.99acres.com/{bhk}-bhk-flats-for-rent-in-gurgaon-ffid"
@@ -45,11 +41,55 @@ class NinetyNineAcresCollector:
 
     @staticmethod
     def to_sector_slug(sector_name: str) -> str:
-        """Converts sector names like 'Sector 45', 'DLF Phase 4' to 99acres URL slugs."""
-        s = sector_name.strip().lower()
-        s = re.sub(r"[^\w\s-]", "", s)
-        s = re.sub(r"[\s_]+", "-", s)
+        """
+        Converts any sector name, alias, or description into a clean 99acres URL slug.
+        Examples:
+          'Sector 57' -> 'sector-57'
+          '57' -> 'sector-57'
+          'Sector 57 (Sushant Lok 3)' -> 'sector-57'
+          'DLF Phase 4 (Sector 43 & 28)' -> 'dlf-phase-4'
+          'Sector 56 & 57' -> 'sector-56'
+          'IMT Manesar Sector 1' -> 'imt-manesar-sector-1'
+          'Palam Vihar Extension' -> 'palam-vihar-extension'
+        """
+        if not sector_name:
+            return ""
+
+        s = str(sector_name).strip().lower()
+
+        # 1. Remove parenthetical annotations e.g. "(Sector 43 & 28)", "(Sushant Lok 3)"
+        s = re.sub(r"\(.*?\)", "", s).strip()
+
+        # 2. If compound sectors like "Sector 56 & 57", take the primary one
+        s = re.sub(r"\s+(&|and)\s+.*$", "", s).strip()
+
+        # 3. Clean punctuation except hyphens, spaces, alphanumeric
+        s = re.sub(r"[^\w\s-]", " ", s)
+        s = re.sub(r"[\s_]+", "-", s).strip("-")
+
+        # 4. Handle pure digit input e.g. "57" -> "sector-57"
+        if s.isdigit():
+            s = f"sector-{s}"
+
+        # 5. Handle "sec-57" -> "sector-57"
+        if s.startswith("sec-"):
+            s = "sector-" + s[4:]
+
+        # 6. Avoid trailing "-gurgaon" duplication
+        if s.endswith("-gurgaon"):
+            s = s[:-8]
+
         return s
+
+    @classmethod
+    def build_sector_url(cls, sector_name: str, bhk: Optional[int] = None) -> str:
+        """Constructs canonical 99acres rental search URL for a given sector and BHK."""
+        slug = cls.to_sector_slug(sector_name)
+        if not slug:
+            return cls.CITYWIDE_URL if not bhk else f"https://www.99acres.com/{bhk}-bhk-flats-for-rent-in-gurgaon-ffid"
+        if bhk:
+            return f"https://www.99acres.com/{bhk}-bhk-flats-for-rent-in-{slug}-gurgaon-ffid"
+        return f"https://www.99acres.com/flats-for-rent-in-{slug}-gurgaon-ffid"
 
     def _build_page_url(self, page_num: int) -> str:
         """Generates paginated 99acres SRP URLs."""
@@ -311,11 +351,17 @@ class NinetyNineAcresCollector:
                     # Additional jitter for dynamic SSR hydration
                     await page.sleep(random.uniform(2.0, 3.5))
 
-                    # Circuit Breaker: check for bot challenge or redirect
+                    # Circuit Breaker: check for bot challenge, warning window or redirect
                     curr_url = await page.evaluate("window.location.href")
                     title = await page.evaluate("document.title")
-                    if "verifycaptcha" in curr_url or "Access Denied" in title or "Robot" in title:
-                        print(f"[99acres] [CIRCUIT BREAKER] Bot challenge detected at {curr_url} (Title: {title}). Aborting session immediately to protect IP!")
+                    has_captcha = await page.evaluate("""
+                        (() => {
+                            const c = document.querySelector('iframe[src*="captcha"], [class*="captcha"], [id*="captcha"], #verifycaptcha, .geetest_holder, [class*="blocked"]');
+                            return !!c;
+                        })()
+                    """)
+                    if "verifycaptcha" in curr_url or "Access Denied" in title or "Robot" in title or has_captcha:
+                        print(f"[99acres] [CIRCUIT BREAKER] Warning window / bot challenge detected at {curr_url} (Title: '{title}', Captcha element: {has_captcha}). Aborting session immediately to protect IP!")
                         circuit_broken = True
                         break
 
