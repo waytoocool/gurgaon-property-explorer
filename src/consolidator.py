@@ -433,25 +433,50 @@ class Consolidator:
         print(f"[Consolidator] Identified {len(clusters)} unique physical units across Gurgaon dataset.")
 
         # Preserve any existing manual audit anomaly tags and manual sector overrides across all constituent portal IDs
-        cur.execute("""
-            SELECT uid, nobroker_id, housing_id, acres_id, audit_anomaly_tag, actual_sector 
-            FROM consolidated_listings 
-            WHERE audit_anomaly_tag IS NOT NULL
-        """)
         saved_audits_by_uid = {}
         saved_audits_by_portal = {}
-        for r in cur.fetchall():
-            d = dict(r)
-            tag = d.get("audit_anomaly_tag")
-            sec = d.get("actual_sector")
-            if d.get("uid"):
-                saved_audits_by_uid[d["uid"]] = d
-            if d.get("nobroker_id"):
-                saved_audits_by_portal[("NoBroker", str(d["nobroker_id"]))] = (tag, sec)
-            if d.get("housing_id"):
-                saved_audits_by_portal[("Housing", str(d["housing_id"]))] = (tag, sec)
-            if d.get("acres_id"):
-                saved_audits_by_portal[("99acres", str(d["acres_id"]))] = (tag, sec)
+
+        # 1. Load from persistent config/audited_listings.json if present
+        audit_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "audited_listings.json")
+        if os.path.exists(audit_file):
+            try:
+                with open(audit_file, "r", encoding="utf-8") as f:
+                    file_audits = json.load(f)
+                for d in file_audits:
+                    tag = d.get("audit_anomaly_tag")
+                    sec = d.get("actual_sector")
+                    if d.get("uid"):
+                        saved_audits_by_uid[d["uid"]] = d
+                    if d.get("nobroker_id"):
+                        saved_audits_by_portal[("NoBroker", str(d["nobroker_id"]))] = (tag, sec)
+                    if d.get("housing_id"):
+                        saved_audits_by_portal[("Housing", str(d["housing_id"]))] = (tag, sec)
+                    if d.get("acres_id"):
+                        saved_audits_by_portal[("99acres", str(d["acres_id"]))] = (tag, sec)
+            except Exception:
+                pass
+
+        # 2. Layer any in-database audits currently present
+        try:
+            cur.execute("""
+                SELECT uid, nobroker_id, housing_id, acres_id, audit_anomaly_tag, actual_sector 
+                FROM consolidated_listings 
+                WHERE audit_anomaly_tag IS NOT NULL
+            """)
+            for r in cur.fetchall():
+                d = dict(r)
+                tag = d.get("audit_anomaly_tag")
+                sec = d.get("actual_sector")
+                if d.get("uid"):
+                    saved_audits_by_uid[d["uid"]] = d
+                if d.get("nobroker_id"):
+                    saved_audits_by_portal[("NoBroker", str(d["nobroker_id"]))] = (tag, sec)
+                if d.get("housing_id"):
+                    saved_audits_by_portal[("Housing", str(d["housing_id"]))] = (tag, sec)
+                if d.get("acres_id"):
+                    saved_audits_by_portal[("99acres", str(d["acres_id"]))] = (tag, sec)
+        except Exception:
+            pass
 
         # Clear and rebuild consolidated_listings
         cur.execute("DELETE FROM consolidated_listings")
