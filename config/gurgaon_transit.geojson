@@ -1,0 +1,539 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Delhi Metro Yellow Line",
+        "network": "DMRC",
+        "line_color": "#eab308",
+        "type": "metro_line"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.1065,
+            28.4855
+          ],
+          [
+            77.1026,
+            28.4815
+          ],
+          [
+            77.0933,
+            28.4819
+          ],
+          [
+            77.0801,
+            28.4796
+          ],
+          [
+            77.0725,
+            28.4721
+          ],
+          [
+            77.0727,
+            28.4593
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Rapid Metro (Cyber City Loop)",
+        "network": "Rapid Metro",
+        "line_color": "#06b6d4",
+        "type": "metro_line"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.0933,
+            28.4819
+          ],
+          [
+            77.089,
+            28.4897
+          ],
+          [
+            77.0877,
+            28.4965
+          ],
+          [
+            77.0886,
+            28.4998
+          ],
+          [
+            77.0975,
+            28.5028
+          ],
+          [
+            77.1024,
+            28.4947
+          ],
+          [
+            77.0933,
+            28.4819
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Rapid Metro (Golf Course Road Branch)",
+        "network": "Rapid Metro",
+        "line_color": "#06b6d4",
+        "type": "metro_line"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.0933,
+            28.4819
+          ],
+          [
+            77.0963,
+            28.4746
+          ],
+          [
+            77.0988,
+            28.461
+          ],
+          [
+            77.1009,
+            28.4485
+          ],
+          [
+            77.108,
+            28.441
+          ],
+          [
+            77.1068,
+            28.4285
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Guru Dronacharya",
+        "line": "Yellow Line",
+        "color": "#eab308",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.1026,
+          28.4815
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sikanderpur (Interchange)",
+        "line": "Yellow & Rapid Metro",
+        "color": "#f59e0b",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0933,
+          28.4819
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "MG Road",
+        "line": "Yellow Line",
+        "color": "#eab308",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0801,
+          28.4796
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "IFFCO Chowk",
+        "line": "Yellow Line",
+        "color": "#eab308",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0725,
+          28.4721
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Millennium City Centre (HUDA City Centre)",
+        "line": "Yellow Line (Terminal)",
+        "color": "#eab308",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0727,
+          28.4593
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Phase 2",
+        "line": "Rapid Metro",
+        "color": "#06b6d4",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.089,
+          28.4897
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Vodafone Belvedere Towers",
+        "line": "Rapid Metro",
+        "color": "#06b6d4",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0877,
+          28.4965
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Cyber City",
+        "line": "Rapid Metro",
+        "color": "#06b6d4",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0886,
+          28.4998
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Moulsari Avenue",
+        "line": "Rapid Metro",
+        "color": "#06b6d4",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0975,
+          28.5028
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Phase 3",
+        "line": "Rapid Metro",
+        "color": "#06b6d4",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.1024,
+          28.4947
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "DLF Phase 1",
+        "line": "Rapid Metro",
+        "color": "#06b6d4",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0963,
+          28.4746
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sector 42-43",
+        "line": "Rapid Metro",
+        "color": "#06b6d4",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0988,
+          28.461
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sector 53-54",
+        "line": "Rapid Metro",
+        "color": "#06b6d4",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.1009,
+          28.4485
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sector 54 Chowk",
+        "line": "Rapid Metro",
+        "color": "#06b6d4",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.108,
+          28.441
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sector 55-56",
+        "line": "Rapid Metro (Terminal)",
+        "color": "#06b6d4",
+        "type": "metro_station"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.1068,
+          28.4285
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "DLF Cyber Hub",
+        "description": "Corporate & Dining Hub",
+        "icon": "\ud83c\udfe2",
+        "type": "major_place"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0888,
+          28.495
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "DLF Galleria Market",
+        "description": "Iconic Retail & Food Plaza",
+        "icon": "\ud83d\udecd\ufe0f",
+        "type": "major_place"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0815,
+          28.4675
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "One Horizon Center",
+        "description": "Prime Corporate Tower",
+        "icon": "\ud83c\udfe2",
+        "type": "major_place"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.097,
+          28.455
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Two Horizon Center",
+        "description": "Golf Course Road Hub",
+        "icon": "\ud83c\udfe2",
+        "type": "major_place"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.098,
+          28.4535
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Ambience Mall",
+        "description": "Mega Shopping Mall",
+        "icon": "\ud83d\udecd\ufe0f",
+        "type": "major_place"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0968,
+          28.5048
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "South Point Mall",
+        "description": "Golf Course Road Retail",
+        "icon": "\ud83d\udecd\ufe0f",
+        "type": "major_place"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.1005,
+          28.4455
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Ardee Mall",
+        "description": "Sector 52 Mall",
+        "icon": "\ud83d\udecd\ufe0f",
+        "type": "major_place"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.079,
+          28.437
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "WorldMark Gurgaon",
+        "description": "Sector 65 Business Hub",
+        "icon": "\ud83c\udfe2",
+        "type": "major_place"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.078,
+          28.406
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Medanta The Medicity",
+        "description": "Landmark Super-Specialty Hospital",
+        "icon": "\ud83c\udfe5",
+        "type": "major_place"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.042,
+          28.439
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Fortis Hospital",
+        "description": "Sector 44 Medical Hub",
+        "icon": "\ud83c\udfe5",
+        "type": "major_place"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0735,
+          28.458
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "DLF Golf & Country Club",
+        "description": "Championship Golf Course",
+        "icon": "\u26f3",
+        "type": "major_place"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.104,
+          28.46
+        ]
+      }
+    }
+  ]
+}

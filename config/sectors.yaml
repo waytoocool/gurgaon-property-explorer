@@ -1,0 +1,272 @@
+crawl_seeds: &id001
+  dlf_phase_4:
+    name: DLF Phase 4 (Sector 43 & 28)
+    primary_sector: Sector 43
+    nobroker:
+      lat: 28.4671
+      lon: 77.082
+      place_name: DLF Phase IV
+      place_id: ''
+      radius: 2.5
+    housing:
+      url: https://housing.com/rent/flats-for-rent-in-dlf-phase-4-gurgaon-P3a7ctrhlqp0cuwe2
+  dlf_phase_5:
+    name: DLF Phase 5 (Sector 53 & 54)
+    primary_sector: Sector 53
+    nobroker:
+      lat: 28.4485
+      lon: 77.097
+      place_name: DLF Phase 5
+      place_id: ''
+      radius: 2.5
+    housing:
+      url: https://housing.com/rent/flats-for-rent-in-dlf-phase-5-gurgaon-P66q6q5l3d1v1rvy
+  sector_56_57:
+    name: Sector 56 & 57 (Golf Course Extension)
+    primary_sector: Sector 56
+    nobroker:
+      lat: 28.4312
+      lon: 77.0886
+      place_name: Sector 56
+      place_id: ''
+      radius: 2.5
+    housing:
+      url: https://housing.com/rent/flats-for-rent-in-sector-56-gurgaon-P2k9p6o977s4q5o91
+huda_sectors:
+  Sector 17:
+    lat: 28.4758
+    lon: 77.0608
+    min_lat: 28.46874
+    max_lat: 28.48507
+    min_lon: 77.05342
+    max_lon: 77.07042
+    aliases:
+    - Sector 17A
+    - Sector 17B
+    - IFFCO Colony
+  Sector 18:
+    lat: 28.4913
+    lon: 77.071
+    min_lat: 28.47911
+    max_lat: 28.50369
+    min_lon: 77.05614
+    max_lon: 77.08622
+    aliases:
+    - Electronic City
+    - Cyber City North
+  Sector 24:
+    lat: 28.49448
+    lon: 77.1013
+    min_lat: 28.48156
+    max_lat: 28.50708
+    min_lon: 77.09094
+    max_lon: 77.11951
+    aliases:
+    - DLF Phase 3
+    - Ambience Island
+  Sector 25:
+    lat: 28.48609
+    lon: 77.08422
+    min_lat: 28.47746
+    max_lat: 28.49501
+    min_lon: 77.06845
+    max_lon: 77.09517
+    aliases:
+    - DLF Phase 2
+    - Cyber City
+  Sector 26:
+    lat: 28.47794
+    lon: 77.10324
+    min_lat: 28.46795
+    max_lat: 28.48507
+    min_lon: 77.09375
+    max_lon: 77.11068
+    aliases:
+    - DLF Phase 1 (Part)
+    - Sikanderpur
+  Sector 27:
+    lat: 28.46466
+    lon: 77.08395
+    min_lat: 28.44466
+    max_lat: 28.48466
+    min_lon: 77.06395
+    max_lon: 77.10395
+    aliases:
+    - DLF Phase 1 (Part)
+    - Hamilton Court Road
+  Sector 28:
+    lat: 28.47413
+    lon: 77.08257
+    min_lat: 28.46791
+    max_lat: 28.48148
+    min_lon: 77.07156
+    max_lon: 77.09463
+    aliases:
+    - DLF Phase 1 / Sector 28
+    - Silver Oaks
+    - Maruti Vihar
+  Sector 29:
+    lat: 28.46692
+    lon: 77.06713
+    min_lat: 28.45809
+    max_lat: 28.47806
+    min_lon: 77.05741
+    max_lon: 77.07411
+    aliases:
+    - Sector 29 Commercial
+    - Leisure Valley
+  Sector 30:
+    lat: 28.46187
+    lon: 77.05688
+    min_lat: 28.45582
+    max_lat: 28.46874
+    min_lon: 77.04977
+    max_lon: 77.06399
+    aliases:
+    - Sector 30
+    - Silokhera
+  Sector 31:
+    lat: 28.454
+    lon: 77.04972
+    min_lat: 28.44625
+    max_lat: 28.45959
+    min_lon: 77.0419
+    max_lon: 77.05667
+    aliases:
+    - Sector 31
+    - Raheja Atlantis
+  Sector 41:
+    lat: 28.45692
+    lon: 77.0646
+    min_lat: 28.45001
+    max_lat: 28.46396
+    min_lon: 77.05599
+    max_lon: 77.07166
+    aliases:
+    - South City 1
+    - The Palms
+  Sector 42:
+    lat: 28.4559
+    lon: 77.10848
+    min_lat: 28.44923
+    max_lat: 28.46795
+    min_lon: 77.09526
+    max_lon: 77.12205
+    aliases:
+    - Golf Course Road
+    - Aaryans
+  Sector 43:
+    lat: 28.45487
+    lon: 77.08589
+    min_lat: 28.44732
+    max_lat: 28.46316
+    min_lon: 77.07411
+    max_lon: 77.09943
+    aliases:
+    - DLF Phase 4
+    - Regency Park
+    - Ridgewood
+    - Galleria
+  Sector 44:
+    lat: 28.45071
+    lon: 77.07383
+    min_lat: 28.44593
+    max_lat: 28.45885
+    min_lon: 77.06644
+    max_lon: 77.07948
+    aliases:
+    - Sector 44 Institutional / Residential
+    - Taj City Centre
+  Sector 45:
+    lat: 28.4449
+    lon: 77.06635
+    min_lat: 28.43688
+    max_lat: 28.45247
+    min_lon: 77.0582
+    max_lon: 77.0759
+    aliases:
+    - Sector 45
+    - Greenwood City (Part)
+  Sector 51:
+    lat: 28.4287
+    lon: 77.06669
+    min_lat: 28.42053
+    max_lat: 28.43688
+    min_lon: 77.0573
+    max_lon: 77.07547
+    aliases:
+    - Sector 51
+    - Mayfield Garden (Part)
+    - Artemis Hospital
+  Sector 52:
+    lat: 28.43682
+    lon: 77.07953
+    min_lat: 28.42967
+    max_lat: 28.44732
+    min_lon: 77.06732
+    max_lon: 77.09131
+    aliases:
+    - Ardee City
+    - Sector 52
+    - Koyal Vihar
+  Sector 53:
+    lat: 28.44152
+    lon: 77.09681
+    min_lat: 28.43129
+    max_lat: 28.45025
+    min_lon: 77.08768
+    max_lon: 77.10532
+    aliases:
+    - DLF Phase 5 (North)
+    - The Aralias
+    - DLF The Crest
+    - Westend Heights
+    - DLF Exclusive Floors
+  Sector 54:
+    lat: 28.44211
+    lon: 77.11127
+    min_lat: 28.43134
+    max_lat: 28.45045
+    min_lon: 77.09943
+    max_lon: 77.12205
+    aliases:
+    - DLF Phase 5 (South)
+    - The Camellias
+    - DLF Park Place
+    - The Belaire
+    - Suncity
+  Sector 55:
+    lat: 28.42742
+    lon: 77.10975
+    min_lat: 28.41926
+    max_lat: 28.43142
+    min_lon: 77.10519
+    max_lon: 77.11841
+    aliases:
+    - Sector 55
+    - Golf Course Road End
+  Sector 56:
+    lat: 28.42532
+    lon: 77.09852
+    min_lat: 28.41727
+    max_lat: 28.43148
+    min_lon: 77.09108
+    max_lon: 77.10532
+    aliases:
+    - Sector 56
+    - Kendriya Vihar
+    - Devinder Vihar
+    - Rail Vihar
+  Sector 57:
+    lat: 28.42325
+    lon: 77.08045
+    min_lat: 28.41228
+    max_lat: 28.43065
+    min_lon: 77.06481
+    max_lon: 77.09125
+    aliases:
+    - Sector 57
+    - Sushant Lok 2
+    - Sushant Lok 3
+    - Boom Plaza
+sectors: *id001
