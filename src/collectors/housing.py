@@ -18,6 +18,136 @@ class HousingCollector:
     CITYWIDE_2BHK_URL = "https://housing.com/rent/2bhk-flats-for-rent-in-gurgaon-haryana-C4P1od1w26jrfqap1jl"
     CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     PROFILE_DIR = "/tmp/housing_uc_profile"
+    CATALOG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "config", "housing_sectors.json"))
+
+    @staticmethod
+    def _normalize_sector_name(name: str) -> str:
+        s = name.lower().strip()
+        s = re.sub(r"[_/-]", " ", s)
+        s = re.sub(r"\s+", " ", s)
+        return s
+
+    @classmethod
+    def _get_key_variants(cls, name: str) -> List[str]:
+        norm = cls._normalize_sector_name(name)
+        variants = [norm]
+        clean = re.sub(r"[^a-z0-9]", "", norm)
+        if clean:
+            variants.append(clean)
+        
+        # If digits only, e.g. "57" -> "sector 57", "sector57"
+        if norm.isdigit():
+            variants.append(f"sector {norm}")
+            variants.append(f"sector{norm}")
+        
+        # "sec 57" -> "sector 57"
+        if norm.startswith("sec "):
+            variants.append(norm.replace("sec ", "sector "))
+            variants.append(norm.replace("sec ", "sector"))
+            
+        # "dlf phase 4" -> "dlf 4", "dlf4"
+        if "phase" in norm:
+            variants.append(norm.replace("phase", "").strip())
+            variants.append(re.sub(r"[^a-z0-9]", "", norm.replace("phase", "")))
+            
+        # "ext" -> "extension"
+        if "ext" in norm and "extension" not in norm:
+            variants.append(norm.replace("ext", "extension"))
+            variants.append(re.sub(r"[^a-z0-9]", "", norm.replace("ext", "extension")))
+
+        return list(dict.fromkeys(variants))
+
+    @classmethod
+    def load_catalog(cls) -> Dict[str, Any]:
+        """Loads the sector-to-polygon-hash catalog from housing_sectors.json."""
+        if not os.path.exists(cls.CATALOG_PATH):
+            return {}
+        try:
+            with open(cls.CATALOG_PATH, "r", encoding="utf-8") as f:
+                return json.load(f) or {}
+        except Exception as e:
+            print(f"[Housing] Warning: Failed to load housing sectors catalog: {e}")
+            return {}
+
+    @classmethod
+    def save_catalog(cls, catalog: Dict[str, Any]) -> None:
+        """Persists the sector-to-polygon-hash catalog to housing_sectors.json."""
+        os.makedirs(os.path.dirname(cls.CATALOG_PATH), exist_ok=True)
+        try:
+            with open(cls.CATALOG_PATH, "w", encoding="utf-8") as f:
+                json.dump(catalog, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"[Housing] Warning: Failed to save housing sectors catalog: {e}")
+
+    @classmethod
+    def get_sector_url(cls, sector_name: str) -> Optional[str]:
+        """
+        Resolves canonical Housing.com search URL with P<hash> for any sector name or alias.
+        Supports 'Sector 57', 'sector_57', '57', 'dlf_phase_4', 'Sushant Lok 1', etc.
+        """
+        if not sector_name:
+            return None
+        catalog = cls.load_catalog()
+        if not catalog:
+            return None
+
+        # 1. Exact catalog key match
+        if sector_name in catalog:
+            return catalog[sector_name].get("url")
+
+        # 2. Normalized alias match
+        variants = cls._get_key_variants(sector_name)
+        for cat_name, cat_entry in catalog.items():
+            cat_variants = cls._get_key_variants(cat_name)
+            if any(v in cat_variants for v in variants):
+                return cat_entry.get("url")
+
+        return None
+
+    @classmethod
+    def update_catalog_with_links(cls, links_dict: Dict[str, str]) -> int:
+        """
+        Self-learning expansion: extracts sector polygon hashes from newly discovered DOM links
+        and merges them into config/housing_sectors.json.
+        """
+        if not links_dict:
+            return 0
+        catalog = cls.load_catalog()
+        added_count = 0
+
+        for raw_text, href in links_dict.items():
+            m = re.search(r"/rent/flats-for-rent-in-(.*?)-(P[a-z0-9]+)(?:\?|$)", href)
+            if not m:
+                continue
+            slug, p_hash = m.group(1), m.group(2)
+
+            # Derive clean sector name
+            clean_name = raw_text.strip()
+            clean_name = re.sub(r"(?i)^flats\s+for\s+rent\s+in\s+", "", clean_name)
+            clean_name = re.sub(r"(?i)\s+gurgaon.*$", "", clean_name)
+            clean_name = re.sub(r"(?i)\s+gurugram.*$", "", clean_name)
+
+            if not clean_name or len(clean_name) > 50:
+                s = slug.replace("-gurgaon", "").replace("-gurugram", "").replace("-haryana", "")
+                parts = s.split("-")
+                clean_name = " ".join([p.upper() if p.lower() in ["dlf", "imt"] else p.capitalize() for p in parts])
+
+            full_url = f"https://housing.com/rent/flats-for-rent-in-{slug}-{p_hash}"
+
+            # Only add if not present
+            if clean_name not in catalog:
+                catalog[clean_name] = {
+                    "name": clean_name,
+                    "hash": p_hash,
+                    "url": full_url
+                }
+                added_count += 1
+
+        if added_count > 0:
+            cls.save_catalog(catalog)
+            print(f"[Housing] Self-learning catalog: Added {added_count} new sector(s) to housing_sectors.json.")
+
+        return added_count
 
     @staticmethod
     def to_bhk_url(url: str, bhk: Optional[int] = None) -> str:
@@ -235,6 +365,29 @@ class HousingCollector:
                     continue
 
                 print(f"[Housing] Page {page_num}: Received {len(sr_data)} raw entities.")
+
+                # Self-learning catalog harvest: extract any linked Gurgaon sectors on page
+                try:
+                    raw_links = await page.evaluate("""
+                        (() => {
+                            const links = Array.from(document.querySelectorAll('a[href*="/rent/flats-for-rent-in-"]'));
+                            const map = {};
+                            for (const a of links) {
+                                const href = a.getAttribute('href') || '';
+                                const text = (a.innerText || '').trim();
+                                if (href.includes('-P') && (href.includes('gurgaon') || href.includes('gurugram'))) {
+                                    map[text] = href;
+                                }
+                            }
+                            return JSON.stringify(map);
+                        })()
+                    """)
+                    if raw_links:
+                        links_map = json.loads(raw_links)
+                        if links_map:
+                            self.update_catalog_with_links(links_map)
+                except Exception:
+                    pass
 
                 for p_id, item in sr_data.items():
                     parsed = self.parse_listing(p_id, item)

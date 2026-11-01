@@ -32,6 +32,83 @@ crawl_seeds:
       radius: 2.5
     housing:
       url: https://housing.com/rent/flats-for-rent-in-sector-56-gurgaon-P2k9p6o977s4q5o91
+  sector_57:
+    name: Sector 57 (Sushant Lok 3)
+    primary_sector: Sector 57
+    nobroker:
+      lat: 28.4232
+      lon: 77.0805
+      place_name: Sector 57
+      place_id: ''
+      radius: 2.0
+    housing:
+      url: https://housing.com/rent/flats-for-rent-in-sector-57-gurgaon-P6nh4kvx3pvh24c5
+  sector_43:
+    name: Sector 43 (Golf Course Road)
+    primary_sector: Sector 43
+    nobroker:
+      lat: 28.4552
+      lon: 77.0872
+      place_name: Sector 43
+      place_id: ''
+      radius: 2.0
+    housing:
+      url: https://housing.com/rent/flats-for-rent-in-sector-43-gurgaon-P546nmwx0mb1amy8d
+  sector_44:
+    name: Sector 44 (Institutional Area & Huda City Centre)
+    primary_sector: Sector 44
+    nobroker:
+      lat: 28.4528
+      lon: 77.0732
+      place_name: Sector 44
+      place_id: ''
+      radius: 2.0
+    housing:
+      url: https://housing.com/rent/flats-for-rent-in-sector-44-gurgaon-P1b8cztpkpj0l5a5o
+  sector_45:
+    name: Sector 45 (Greenwood City)
+    primary_sector: Sector 45
+    nobroker:
+      lat: 28.4449
+      lon: 77.0664
+      place_name: Sector 45
+      place_id: ''
+      radius: 2.0
+    housing:
+      url: https://housing.com/rent/flats-for-rent-in-sector-45-gurgaon-P5xgd3oi3niua6ofd
+  dlf_phase_3:
+    name: DLF Phase 3 (Sector 24 & Cyber City)
+    primary_sector: Sector 24
+    nobroker:
+      lat: 28.4945
+      lon: 77.1013
+      place_name: DLF Phase 3
+      place_id: ''
+      radius: 2.0
+    housing:
+      url: https://housing.com/rent/flats-for-rent-in-dlf-phase-3-gurgaon-P68ey6ve69mmlr5n2
+  sushant_lok_1:
+    name: Sushant Lok Phase 1 (Sector 27 / 28 / 43)
+    primary_sector: Sector 43
+    nobroker:
+      lat: 28.4650
+      lon: 77.0780
+      place_name: Sushant Lok 1
+      place_id: ''
+      radius: 2.0
+    housing:
+      url: https://housing.com/rent/flats-for-rent-in-sushant-lok-phase-1-gurgaon-P5hd4k3472nkbdh3k
+  palam_vihar_ext:
+    name: Palam Vihar Extension
+    primary_sector: Palam Vihar Extension
+    nobroker:
+      lat: 28.5135
+      lon: 77.0345
+      place_name: Palam Vihar Extension
+      place_id: ''
+      radius: 2.0
+    housing:
+      url: https://housing.com/rent/flats-for-rent-in-palam-vihar-extension-gurgaon-P9duz1ve0oflstqm
 huda_sectors:
   Sector 17:
     aliases:

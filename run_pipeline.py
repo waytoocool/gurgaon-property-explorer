@@ -18,6 +18,7 @@ import argparse
 import yaml
 import os
 import json
+import re
 import time
 import math
 from typing import Dict, Any, Optional, List
@@ -60,11 +61,69 @@ def load_all_geojson_sectors(geojson_path: str = "config/gurgaon_sectors.geojson
 
 def load_sector_config(sector_key: str = "dlf_phase_4") -> Dict[str, Any]:
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "sectors.yaml")
-    if not os.path.exists(config_path):
+    data = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    seeds = data.get("crawl_seeds", {}) or data.get("sectors", {})
+
+    cfg = {}
+    if sector_key in seeds:
+        cfg = dict(seeds[sector_key])
+    else:
+        # Check normalized key match in seeds
+        norm_key = re.sub(r"[^a-z0-9]", "", sector_key.lower())
+        for k, v in seeds.items():
+            if re.sub(r"[^a-z0-9]", "", k.lower()) == norm_key:
+                cfg = dict(v)
+                break
+            if re.sub(r"[^a-z0-9]", "", v.get("name", "").lower()) == norm_key:
+                cfg = dict(v)
+                break
+            if re.sub(r"[^a-z0-9]", "", v.get("primary_sector", "").lower()) == norm_key:
+                cfg = dict(v)
+                break
+
+    # If still not found, check official GMDA sector polygons in GeoJSON
+    if not cfg:
+        norm_key = re.sub(r"[^a-z0-9]", "", sector_key.lower())
+        try:
+            geojson_sectors = load_all_geojson_sectors()
+            for sec in geojson_sectors:
+                sec_norm = re.sub(r"[^a-z0-9]", "", sec["name"].lower())
+                if sec_norm == norm_key or (norm_key.isdigit() and sec_norm == f"sector{norm_key}"):
+                    cfg = {
+                        "name": sec["name"],
+                        "primary_sector": sec["name"],
+                        "nobroker": {
+                            "lat": sec["lat"],
+                            "lon": sec["lon"],
+                            "place_name": sec["name"],
+                            "place_id": "",
+                            "radius": 2.0
+                        },
+                        "housing": {
+                            "url": HousingCollector.get_sector_url(sec["name"])
+                        }
+                    }
+                    break
+        except Exception:
+            pass
+
+    if not cfg:
         return {}
-    with open(config_path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-    return data.get("crawl_seeds", {}).get(sector_key, {}) or data.get("sectors", {}).get(sector_key, {})
+
+    # Guarantee housing URL is populated if available in housing_sectors.json catalog
+    if "housing" not in cfg or not cfg["housing"].get("url"):
+        resolved_h_url = (
+            HousingCollector.get_sector_url(cfg.get("primary_sector", "")) or
+            HousingCollector.get_sector_url(cfg.get("name", "")) or
+            HousingCollector.get_sector_url(sector_key)
+        )
+        if resolved_h_url:
+            cfg.setdefault("housing", {})["url"] = resolved_h_url
+
+    return cfg
 
 def run(
     all_sectors: bool = False,
@@ -142,14 +201,32 @@ def run(
             else:
                 print("\n[NoBroker]: nb_pages=0, skipping NoBroker crawl.")
 
-            # Optional Housing.com Sweep (Citywide fallback notice)
+            # Optional Housing.com Sweep
             if housing_pages > 0:
-                h_url = HousingCollector.to_bhk_url(HousingCollector.CITYWIDE_URL, bhk=bhk)
-                print(f"\n[Housing.com]: Ingesting {housing_pages} page(s) ({h_url})...")
-                print("   [Notice]: Multi-sector dynamic indexing for Housing.com is planned for dedicated phase; fetching citywide.")
-                h_collector = HousingCollector(target_url=h_url, headless=False, bhk=bhk)
-                h_result = h_collector.scrape(pages=housing_pages, start_page=housing_start_page, delay_per_page=3.5)
-                print(f"-> Housing Complete: {h_result['total_processed']} listings processed across {h_result['pages_completed']} pages.\n")
+                if custom_sectors:
+                    print(f"\n[Housing.com]: Ingesting {housing_pages} page(s) across {len(sectors)} custom sector(s)...")
+                    total_h_processed = 0
+                    for sec in sectors:
+                        s_name = sec["name"]
+                        h_url = HousingCollector.get_sector_url(s_name)
+                        if not h_url:
+                            print(f"[{s_name}] -> Skipped Housing (no canonical URL in catalog)")
+                            continue
+                        target_h_url = HousingCollector.to_bhk_url(h_url, bhk=bhk)
+                        h_collector = HousingCollector(target_url=target_h_url, headless=False, bhk=bhk)
+                        try:
+                            h_result = h_collector.scrape(pages=housing_pages, start_page=housing_start_page, delay_per_page=3.5)
+                            total_h_processed += h_result["total_processed"]
+                            print(f"[{s_name}] -> {h_result['total_processed']} Housing listings.")
+                        except Exception as e:
+                            print(f"[{s_name}] -> Housing Error: {e}")
+                    print(f"-> Housing Multi-Sector Sweep Complete: {total_h_processed} listings processed.\n")
+                else:
+                    h_url = HousingCollector.to_bhk_url(HousingCollector.CITYWIDE_URL, bhk=bhk)
+                    print(f"\n[Housing.com]: Ingesting {housing_pages} page(s) ({h_url})...")
+                    h_collector = HousingCollector(target_url=h_url, headless=False, bhk=bhk)
+                    h_result = h_collector.scrape(pages=housing_pages, start_page=housing_start_page, delay_per_page=3.5)
+                    print(f"-> Housing Complete: {h_result['total_processed']} listings processed across {h_result['pages_completed']} pages.\n")
 
             # Optional 99acres Sweep (Citywide fallback notice)
             if acres_pages > 0:
@@ -186,16 +263,16 @@ def run(
             nb_result = nb_collector.scrape(start_page=1, end_page=nb_pages, delay_seconds=delay_seconds)
             print(f"-> NoBroker Complete: {nb_result['total_processed']} listings processed across {nb_result['pages_completed']} pages.\n")
 
-            # Scrape Housing.com (if URL configured for this sector)
+            # Scrape Housing.com (if URL configured or resolved for this sector)
             h_cfg = sector_cfg.get("housing", {})
-            h_url = h_cfg.get("url")
+            h_url = h_cfg.get("url") or HousingCollector.get_sector_url(sector_name) or HousingCollector.get_sector_url(sector_key)
             if h_url and housing_pages > 0:
                 target_h_url = HousingCollector.to_bhk_url(h_url, bhk=bhk)
                 h_collector = HousingCollector(target_url=target_h_url, headless=False, bhk=bhk)
                 h_result = h_collector.scrape(pages=housing_pages, start_page=housing_start_page, delay_per_page=4.0)
                 print(f"-> Housing Complete: {h_result['total_processed']} listings processed across {h_result['pages_completed']} pages.\n")
             elif housing_pages > 0:
-                print(f"[Housing.com]: No configured search URL for '{sector_key}' in sectors.yaml. Skipping Housing scrape.")
+                print(f"[Housing.com]: No configured or resolved search URL for '{sector_name}' ('{sector_key}'). Skipping Housing scrape.")
 
             # Scrape 99acres (if requested and configured)
             if acres_pages > 0:
