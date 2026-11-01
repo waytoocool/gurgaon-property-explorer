@@ -111,7 +111,22 @@ def load_sector_config(sector_key: str = "dlf_phase_4") -> Dict[str, Any]:
             pass
 
     if not cfg:
-        return {}
+        # Check if Housing catalog has this sector or enclave name
+        h_url = HousingCollector.get_sector_url(sector_key)
+        if h_url:
+            cfg = {
+                "name": sector_key,
+                "primary_sector": sector_key,
+                "nobroker": {
+                    "place_name": sector_key,
+                    "radius": 2.0
+                },
+                "housing": {
+                    "url": h_url
+                }
+            }
+        else:
+            return {}
 
     # Guarantee housing URL is populated if available in housing_sectors.json catalog
     if "housing" not in cfg or not cfg["housing"].get("url"):
