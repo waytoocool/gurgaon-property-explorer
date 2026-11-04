@@ -151,14 +151,31 @@ class HousingCollector:
 
     @staticmethod
     def to_bhk_url(url: str, bhk: Optional[int] = None) -> str:
-        """Converts standard Housing.com rent URL to dynamic BHK-specific URL."""
+        """
+        Converts standard Housing.com rent URL to dynamic BHK-specific URL.
+        Housing requires both:
+          1. Path prefix: /{bhk}bhk-flats-for-rent-in-
+          2. Category configuration code in polygon hash: -C{code}P (C1=1RK, C2=1BHK, C4=2BHK, C8=3BHK)
+        Without the -C{code}P code, Housing issues a 301 redirect stripping the BHK filter.
+        """
         if not bhk:
             return url
-        # If url already has a BHK prefix like /2bhk-flats-for-rent-in-
+            
+        # 1. Update path prefix
         if re.search(r"/\d+bhk-flats-for-rent-in-", url):
             url = re.sub(r"/\d+bhk-flats-for-rent-in-", f"/{bhk}bhk-flats-for-rent-in-", url)
         elif "/flats-for-rent-in-" in url:
             url = url.replace("/flats-for-rent-in-", f"/{bhk}bhk-flats-for-rent-in-")
+
+        # 2. Update category code (C2=1BHK, C4=2BHK, C8=3BHK)
+        c_map = {1: 2, 2: 4, 3: 8}
+        if bhk in c_map:
+            c_code = c_map[bhk]
+            if re.search(r"-C\d+P", url):
+                url = re.sub(r"-C\d+P", f"-C{c_code}P", url)
+            elif "-P" in url:
+                url = url.replace("-P", f"-C{c_code}P")
+
         return url
 
     def __init__(
@@ -259,7 +276,7 @@ class HousingCollector:
 
         society = item.get("entityProjectName") or item.get("project")
         if not society:
-            society = "DLF Phase 4 Builder Floor / Independent"
+            society = "Independent Builder Floor / House"
 
         locality = item.get("address", {}).get("address", "DLF Phase 4, Gurgaon")
         is_broker = item.get("isBrokerageChargeable", True)
