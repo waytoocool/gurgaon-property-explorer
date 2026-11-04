@@ -16,8 +16,8 @@ class NinetyNineAcresCollector:
     Bypasses Radware / ShieldSquare bot protection by warming up on the homepage
     and retrieving pre-rendered data from window.__initialData__.srp.pageData.properties.
     """
-    CITYWIDE_URL = "https://www.99acres.com/flats-for-rent-in-gurgaon-ffid"
-    CITYWIDE_2BHK_URL = "https://www.99acres.com/2-bhk-flats-for-rent-in-gurgaon-ffid"
+    CITYWIDE_URL = "https://www.99acres.com/property-for-rent-in-gurgaon-ffid"
+    CITYWIDE_2BHK_URL = "https://www.99acres.com/2-bhk-property-for-rent-in-gurgaon-ffid"
 
     def __init__(
         self,
@@ -35,7 +35,7 @@ class NinetyNineAcresCollector:
             self.target_url = self.build_sector_url(sector_name, bhk=bhk)
         else:
             if bhk:
-                self.target_url = f"https://www.99acres.com/{bhk}-bhk-flats-for-rent-in-gurgaon-ffid"
+                self.target_url = f"https://www.99acres.com/{bhk}-bhk-property-for-rent-in-gurgaon-ffid"
             else:
                 self.target_url = self.CITYWIDE_URL
 
@@ -86,10 +86,10 @@ class NinetyNineAcresCollector:
         """Constructs canonical 99acres rental search URL for a given sector and BHK."""
         slug = cls.to_sector_slug(sector_name)
         if not slug:
-            return cls.CITYWIDE_URL if not bhk else f"https://www.99acres.com/{bhk}-bhk-flats-for-rent-in-gurgaon-ffid"
+            return cls.CITYWIDE_URL if not bhk else f"https://www.99acres.com/{bhk}-bhk-property-for-rent-in-gurgaon-ffid"
         if bhk:
-            return f"https://www.99acres.com/{bhk}-bhk-flats-for-rent-in-{slug}-gurgaon-ffid"
-        return f"https://www.99acres.com/flats-for-rent-in-{slug}-gurgaon-ffid"
+            return f"https://www.99acres.com/{bhk}-bhk-property-for-rent-in-{slug}-gurgaon-ffid"
+        return f"https://www.99acres.com/property-for-rent-in-{slug}-gurgaon-ffid"
 
     def _build_page_url(self, page_num: int) -> str:
         """Generates paginated 99acres SRP URLs."""
@@ -406,6 +406,11 @@ class NinetyNineAcresCollector:
 
         finally:
             try:
+                if hasattr(browser, "aclose"):
+                    await browser.aclose()
+            except Exception:
+                pass
+            try:
                 browser.stop()
             except Exception:
                 pass
@@ -554,6 +559,11 @@ class NinetyNineAcresCollector:
                                 pass
 
         finally:
+            try:
+                if hasattr(browser, "aclose"):
+                    await browser.aclose()
+            except Exception:
+                pass
             try:
                 browser.stop()
             except Exception:
