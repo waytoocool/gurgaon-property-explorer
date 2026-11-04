@@ -73,16 +73,24 @@ def load_sector_config(sector_key: str = "dlf_phase_4") -> Dict[str, Any]:
     else:
         # Check normalized key match in seeds
         norm_key = re.sub(r"[^a-z0-9]", "", sector_key.lower())
+        # 1. Match seed dictionary key (e.g. 'sector_43' matches 'Sector 43' or '43')
         for k, v in seeds.items():
-            if re.sub(r"[^a-z0-9]", "", k.lower()) == norm_key:
+            k_norm = re.sub(r"[^a-z0-9]", "", k.lower())
+            if k_norm == norm_key or (norm_key.isdigit() and k_norm == f"sector{norm_key}"):
                 cfg = dict(v)
                 break
-            if re.sub(r"[^a-z0-9]", "", v.get("name", "").lower()) == norm_key:
-                cfg = dict(v)
-                break
-            if re.sub(r"[^a-z0-9]", "", v.get("primary_sector", "").lower()) == norm_key:
-                cfg = dict(v)
-                break
+        # 2. Match seed name
+        if not cfg:
+            for k, v in seeds.items():
+                if re.sub(r"[^a-z0-9]", "", v.get("name", "").lower()) == norm_key:
+                    cfg = dict(v)
+                    break
+        # 3. Match primary_sector
+        if not cfg:
+            for k, v in seeds.items():
+                if re.sub(r"[^a-z0-9]", "", v.get("primary_sector", "").lower()) == norm_key:
+                    cfg = dict(v)
+                    break
 
     # If still not found, check official GMDA sector polygons in GeoJSON
     if not cfg:
