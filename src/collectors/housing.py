@@ -415,7 +415,15 @@ class HousingCollector:
                 pages_completed += 1
 
         finally:
-            browser.stop()
+            try:
+                if hasattr(browser, "aclose"):
+                    await browser.aclose()
+            except Exception:
+                pass
+            try:
+                browser.stop()
+            except Exception:
+                pass
             conn.close()
 
         return {
@@ -432,6 +440,6 @@ class HousingCollector:
         db_path: Optional[str] = None
     ) -> Dict[str, Any]:
         """Synchronous wrapper for scrape_async."""
-        return uc.loop().run_until_complete(
+        return asyncio.run(
             self.scrape_async(pages=pages, start_page=start_page, delay_per_page=delay_per_page, db_path=db_path)
         )
