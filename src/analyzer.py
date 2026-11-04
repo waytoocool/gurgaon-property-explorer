@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any, List
 from .db import get_connection
 from .normalizers.filters import is_single_room_flatmate
 from .normalizers.society import canonical_society_name, classify_property_as_reported
+from .normalizers.anomaly_detector import Tier1AnomalyDetector
 
 class MarketAnalyzer:
     """
@@ -16,6 +17,7 @@ class MarketAnalyzer:
     """
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path
+        self.anomaly_detector = Tier1AnomalyDetector()
 
     def load_data(
         self,
@@ -399,21 +401,24 @@ class MarketAnalyzer:
                    (rent + maintenance_amount) as total_cost,
                    ROUND((rent + maintenance_amount) * 1.0 / NULLIF(built_up_sqft, 0), 2) as rate,
                    total_floors, floor, listing_url as best_listing_url, posted_date, last_updated_date,
-                   raw_json, NULL as is_flatmate_listing, NULL as description, NULL as audit_anomaly_tag
+                   raw_json, NULL as is_flatmate_listing, NULL as description, NULL as audit_anomaly_tag,
+                   NULL as property_type, latitude, longitude
             FROM raw_nobroker_listings WHERE built_up_sqft > 0
             UNION ALL
             SELECT portal_id, title, society, locality, NULL as actual_sector, bhk, rent, maintenance_amount, built_up_sqft,
                    (rent + maintenance_amount) as total_cost,
                    ROUND((rent + maintenance_amount) * 1.0 / NULLIF(built_up_sqft, 0), 2) as rate,
                    NULL as total_floors, NULL as floor, listing_url as best_listing_url, posted_date, last_updated_date,
-                   raw_json, NULL as is_flatmate_listing, NULL as description, NULL as audit_anomaly_tag
+                   raw_json, NULL as is_flatmate_listing, NULL as description, NULL as audit_anomaly_tag,
+                   NULL as property_type, latitude, longitude
             FROM raw_housing_listings WHERE built_up_sqft > 0
             UNION ALL
             SELECT portal_id, title, society, locality, NULL as actual_sector, bhk, rent, maintenance_amount, built_up_sqft,
                    (rent + maintenance_amount) as total_cost,
                    ROUND((rent + maintenance_amount) * 1.0 / NULLIF(built_up_sqft, 0), 2) as rate,
                    total_floors, floor, listing_url as best_listing_url, posted_date, last_updated_date,
-                   raw_json, NULL as is_flatmate_listing, NULL as description, NULL as audit_anomaly_tag
+                   raw_json, NULL as is_flatmate_listing, NULL as description, NULL as audit_anomaly_tag,
+                   NULL as property_type, latitude, longitude
             FROM raw_99acres_listings WHERE built_up_sqft > 0
             """)
         else:
@@ -421,7 +426,8 @@ class MarketAnalyzer:
             SELECT uid as portal_id, title, society, locality, actual_sector, bhk, min_rent as rent, maintenance_amount,
                    built_up_sqft, total_monthly_cost as total_cost, price_per_sqft as rate,
                    total_floors, floor, best_listing_url, posted_date, last_updated_date,
-                   '' as raw_json, is_flatmate_listing, description, audit_anomaly_tag
+                   '' as raw_json, is_flatmate_listing, description, audit_anomaly_tag,
+                   property_type, latitude, longitude
             FROM consolidated_listings
             WHERE built_up_sqft > 0
             """)
@@ -500,7 +506,7 @@ class MarketAnalyzer:
 
             # Outlier condition: discount exceeds threshold OR has known anomaly tag OR zero/token rent
             is_discount_outlier = (rate is not None and rate <= cutoff_rate)
-            is_zero_or_token = (r["rent"] is not None and (r["rent"] <= 0 or (r["rent"] < 3000 and (r["built_up_sqft"] or 0) >= 400)))
+            is_zero_or_token = (r["rent"] is not None and (r["rent"] <= 0 or (r["rent"] <= 1000 and (r["built_up_sqft"] or 0) >= 400)))
             is_flagged_anomaly = bool(existing_tag in ("DATA_ENTRY_ERROR", "MIS_PINNED_LOCATION", "FLATMATE_AD"))
 
             if not (is_discount_outlier or is_zero_or_token or is_flagged_anomaly):
@@ -516,26 +522,32 @@ class MarketAnalyzer:
                 except Exception:
                     pass
 
-            is_flat = bool(r["is_flatmate_listing"]) or is_single_room_flatmate(r["title"], desc)
-            search_text = f"{r['society'] or ''} {r['locality'] or ''} {r['title'] or ''} {desc}".lower()
-            is_mislocated = any(kw in search_text for kw in MISLOCATED_KEYWORDS)
+            r_cand = dict(r)
+            r_cand["description"] = desc
+
+            detected_tag = existing_tag
+            detected_reason = ""
+            if not detected_tag or detected_tag == "LOW_RISE_WALKUP":
+                d_tag, d_reason = self.anomaly_detector.detect(r_cand)
+                if d_tag:
+                    detected_tag = d_tag
+                    detected_reason = d_reason
 
             flr = r["floor"]
 
             # Diagnosis assignment
-            if existing_tag == "DATA_ENTRY_ERROR" or is_zero_or_token:
+            if detected_tag == "DATA_ENTRY_ERROR" or is_zero_or_token:
                 diag = "[DATA ENTRY ERROR]"
-                reason = "Zero rent, token placeholder rent, or corrupted pricing denominator"
-            elif existing_tag == "FLATMATE_AD" or is_flat:
+                reason = detected_reason or "Zero rent, token placeholder rent, or corrupted pricing denominator"
+            elif detected_tag == "FLATMATE_AD" or bool(r.get("is_flatmate_listing")):
                 diag = "[FLATMATE AD]"
-                reason = "Partial room or flatmate ad masquerading as a full flat"
-            elif existing_tag == "MIS_PINNED_LOCATION" or is_mislocated:
+                reason = detected_reason or "Partial room or flatmate ad masquerading as a full flat"
+            elif detected_tag == "MIS_PINNED_LOCATION":
                 diag = "[MIS-PINNED LOCATION]"
-                matched_kw = next((kw for kw in MISLOCATED_KEYWORDS if kw in search_text), "distant area")
-                reason = f"Property located in {matched_kw.title()} mis-pinned into this sector"
-            elif not is_hr:
+                reason = detected_reason or "Property located in distant area/sector mis-pinned into this sector"
+            elif detected_tag == "LOW_RISE_WALKUP" or not is_hr:
                 diag = "[LOW-RISE WALK-UP]"
-                reason = f"Older low-rise walk-up ({'G+' + str(tf) if tf else 'low-rise'}); lack of elevator/amenities discounts rent"
+                reason = detected_reason or f"Older low-rise walk-up ({'G+' + str(tf) if tf else 'low-rise'}); lack of elevator/amenities discounts rent"
             else:
                 diag = "[GENUINE BUDGET DEAL]"
                 reason = "Verified high-rise full-flat unit priced significantly below typology benchmark"
@@ -582,32 +594,34 @@ class MarketAnalyzer:
         outliers = report["outliers"]
 
         sec_title = f" | Sector: {sector}" if sector else ""
-        print("====================================================================================================================")
+        print("=" * 155)
         print(f"             DYNAMIC DUAL-TIER SECTOR VARIANCE & OUTLIER REPORT (Source: {source.upper()}{sec_title})")
         print(f"             City High-Rise Median: ₹{hr_med:.2f}/sq.ft | City Low-Rise Median: ₹{lr_med:.2f}/sq.ft")
         print(f"             Outlier Threshold: > {threshold_percent:.0f}% Discount relative to Sector Typology Baseline")
         print(f"             Total Outliers Detected: {len(outliers)}")
-        print("====================================================================================================================\n")
+        print("=" * 155 + "\n")
 
         diag_counts = defaultdict(int)
         for o in outliers:
             diag_counts[o["diagnosis"]] += 1
 
-        print("1. OUTLIER ROOT-CAUSE SUMMARY:")
-        for diag, cnt in sorted(diag_counts.items(), key=lambda x: -x[1]):
-            print(f"   * {diag:<24}: {cnt} listings")
+        print("1. TIER-1 AUTOMATED ROOT-CAUSE SUMMARY:")
+        for diag in ["[GENUINE BUDGET DEAL]", "[LOW-RISE WALK-UP]", "[MIS-PINNED LOCATION]", "[DATA ENTRY ERROR]", "[FLATMATE AD]"]:
+            cnt = diag_counts.get(diag, 0)
+            if cnt > 0:
+                print(f"   * {diag:<24}: {cnt:3d} listings")
 
         print("\n2. ANOMALOUS LISTINGS AUDIT MATRIX:")
-        print(f"{'Society / Complex':<24} | {'Sector':<12} | {'Typology':<9} | {'BHK':<4} | {'Rent':<8} | {'Sqft':<5} | {'₹/sqft':<7} | {'Disc%':<7} | {'Diagnosis':<20} | {'Root Cause & Details'}")
+        print(f"{'Society / Complex':<24} | {'Sector':<14} | {'Typology':<9} | {'BHK':<4} | {'Rent':<8} | {'Sqft':<5} | {'₹/sqft':<7} | {'Disc%':<7} | {'Diagnosis':<22} | {'Root Cause & Details'}")
         print("-" * 155)
 
         for o in outliers:
             bhk_s = f"{o['bhk']} BHK" if o['bhk'] else "—"
-            rent_s = f"₹{o['rent']:,}"
+            rent_s = f"₹{o['rent']:,}" if o['rent'] else "₹0"
             sqft_s = f"{o['built_up_sqft']}"
             rate_s = f"₹{o['rate']:.2f}"
-            disc_s = f"-{o['discount_pct']:.1f}%"
-            sec_s = o['sector'][:12]
-            print(f"{o['society'][:24]:<24} | {sec_s:<12} | {o['typology']:<9} | {bhk_s:<4} | {rent_s:<8} | {sqft_s:<5} | {rate_s:<7} | {disc_s:<7} | {o['diagnosis']:<20} | {o['reason']}")
+            disc_s = f"-{abs(o['discount_pct']):.1f}%" if o['discount_pct'] >= 0 else f"+{abs(o['discount_pct']):.1f}%"
+            sec_s = o['sector'][:14]
+            print(f"{o['society'][:24]:<24} | {sec_s:<14} | {o['typology']:<9} | {bhk_s:<4} | {rent_s:<8} | {sqft_s:<5} | {rate_s:<7} | {disc_s:<7} | {o['diagnosis']:<22} | {o['reason']}")
 
-        print("\n====================================================================================================================")
+        print("\n" + "=" * 155)

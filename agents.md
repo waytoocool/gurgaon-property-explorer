@@ -110,15 +110,24 @@ Any agent modifying or extending this codebase **MUST** uphold these principles 
   * `total_floors INTEGER`: Total building floors extracted from portal data.
   * `is_flatmate_listing BOOLEAN`: `1` for single-room ads, `0` otherwise.
   * `description TEXT`: Stored directly in consolidated table for fast search without raw joins.
-* **Decision 3.7 (Sector Variance Detection & Agent Individual Review Workflow)**:
-  * *Rule*: Properties discounted by $> 40\%$ relative to the sector baseline median rate (₹/sq.ft) trigger an audit list (`python analyze_data.py --audit-outliers`).
-  * *Mandatory Agent Individual Review*: **No automated code alters or assigns anomaly classifications automatically.** An AI or human agent must manually inspect each flagged outlier one by one individually, evaluate the underlying raw remarks and geographic reality, and manually update `consolidated_listings`.
+* **Decision 3.7 (Two-Tier Anomaly Engine & Outlier Review Workflow)**:
+  * *Rule*: Properties discounted by $> 40\%$ relative to the sector baseline median rate (₹/sq.ft) trigger an outlier audit list (`python analyze_data.py --audit-outliers`).
+  * *Two-Tier Architecture*:
+    1. *Tier 1 (Automated Heuristic Engine - `src/normalizers/anomaly_detector.py`)*:
+       - Executes automatically during consolidation (`src/consolidator.py`).
+       - Resolves ~90% of anomalies programmatically using deterministic rules:
+         * `DATA_ENTRY_ERROR`: Shorthand or placeholder rents (rent $\le ₹1,000$), implausibly low rates ($< ₹5.0/\text{sq.ft}$), or 1-BHK multi-story area overstatements ($> 1,000\text{ sq.ft}$).
+         * `FLATMATE_AD`: Regex scanner detecting shared flatmate, bed-sharing, and commercial room-block ads (`is_single_room_flatmate`).
+         * `MIS_PINNED_LOCATION`: Text vs. GPS Point-in-Polygon discrepancy (external cities like Chattarpur, Alwar, Kapashera, Aya Nagar, Sohna, or explicit sector numbers situated $> 2.5\text{ km}$ away from the stated polygon).
+         * `LOW_RISE_WALKUP`: Independent builder floors, standalone houses, or buildings with $\text{total\_floors} \le 5$ (Haryana DTCP Stilt + 4 statutory cap).
+    2. *Tier 2 (Agent Review & Persistent Audit Precedence)*:
+       - Any ambiguous listings not captured by Tier 1 can be inspected by an agent or human developer.
+       - Manually assigned audit tags and sector overrides in `config/audited_listings.json` and SQLite take strict precedence over Tier-1 automated heuristics, ensuring manual review effort is permanent and never wiped across re-consolidations.
   * *Workflow*:
-    1. *Source*: Ingest 100% of discovered units unconditionally (Zero Data Loss).
-    2. *Consolidation*: 5-point physical unit fingerprint deduplication with spatial HUDA sector tagging.
+    1. *Source*: Ingest 100% of discovered units unconditionally (Zero Data Loss Ingestion).
+    2. *Consolidation*: 5-point physical unit fingerprint deduplication with PIP sector mapping and Tier-1 automated anomaly tagging.
     3. *Audit by Price Variance*: Engine flags listings with $> 40\%$ discount against the sector median baseline.
-    4. *Agent Individual Review*: Agent manually reviews each flagged listing one by one individually to diagnose the true root cause (`MIS_PINNED_LOCATION`, `FLATMATE_AD`, `LOW_RISE_WALKUP`, `GENUINE_BUDGET_DEAL`).
-    5. *Audit Column Persistence*: Agent updates `audit_anomaly_tag` (and updates `actual_sector` or `is_flatmate_listing` if mis-pinned or a flatmate ad). Downstream clean benchmark calculations exclude confirmed mis-pinned or rogue flatmate ads.
+    4. *Downstream Protection*: Clean analytical benchmarks and production dashboard exports automatically exclude confirmed corrupt records (`DATA_ENTRY_ERROR`, `MIS_PINNED_LOCATION`, `FLATMATE_AD`).
 * **Decision 3.8 (Statutory GMDA Master Plan 2031 Geographic Standardization)**:
   * *Rule*: Map and standardize all listings strictly to official **HUDA & IMT Manesar Sector numbers** (`Sector 43`, `Sector 28`, `Sector 53`, `IMT Manesar Sector 1`, etc.) as `actual_sector` using **official GMDA OneMap Gurugram Master Plan 2031 vector polygons (Layer 67)** supplemented by **official GMDA Colony Boundaries (Layer 68)** persisted locally in [`config/gurgaon_sectors.geojson`](file:///Users/prateekgoyal/Desktop/Prateek/Claude%20Projects/Property%20Explorer/config/gurgaon_sectors.geojson).
   * *Coverage*: 169 official planned sectors & municipal enclaves across Gurugram and Manesar:

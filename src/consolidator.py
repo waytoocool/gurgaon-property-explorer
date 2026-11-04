@@ -10,6 +10,7 @@ from shapely.geometry import shape, Point
 from .db import get_connection, upsert_consolidated
 from .normalizers.filters import is_single_room_flatmate, parse_housing_floor_desc
 from .normalizers.society import canonical_society_name, classify_property_as_reported, fuzzy_match_society
+from .normalizers.anomaly_detector import Tier1AnomalyDetector
 
 def haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Computes great-circle distance between two GPS points in meters."""
@@ -44,6 +45,7 @@ class Consolidator:
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path
         self.sector_polygons = self._load_sector_polygons()
+        self.anomaly_detector = Tier1AnomalyDetector()
 
     def _load_sector_polygons(self) -> Dict[str, Any]:
         """Loads official HUDA sector multi-vertex polygons from config/gurgaon_sectors.geojson."""
@@ -550,17 +552,31 @@ class Consolidator:
                             actual_sec = saved_sec
                         break
 
-            # Automated Anomaly Guards
+            # 3. Tier-1 Automated Heuristic Engine (Applied if no manual audit tag exists)
             if not anomaly_tag:
-                # Guard 1: Zero or missing rent (corporate leases or placeholder entries)
-                if min_rent is None or min_rent <= 0:
-                    anomaly_tag = "DATA_ENTRY_ERROR"
-                # Guard 2: Token placeholder rent (rent < 3000 where security deposit > 8 * rent)
-                elif min_rent < 3000 and primary.get("deposit") and primary["deposit"] > 8 * min_rent:
-                    anomaly_tag = "DATA_ENTRY_ERROR"
+                cand_item = {
+                    "min_rent": min_rent,
+                    "built_up_sqft": sqft,
+                    "price_per_sqft": price_sqft,
+                    "bhk": primary.get("bhk"),
+                    "total_floors": total_flrs,
+                    "property_type": primary.get("property_type"),
+                    "society": primary.get("society"),
+                    "locality": primary.get("locality"),
+                    "title": primary.get("title"),
+                    "description": primary.get("description"),
+                    "actual_sector": actual_sec,
+                    "latitude": primary.get("latitude"),
+                    "longitude": primary.get("longitude")
+                }
+                detected_tag, reason = self.anomaly_detector.detect(cand_item)
+                if detected_tag:
+                    anomaly_tag = detected_tag
 
             # Cluster-wide flatmate flag
-            is_flat = 1 if any(i.get("is_flatmate_listing") for i in cl) else 0
+            is_flat = 1 if (anomaly_tag == "FLATMATE_AD" or any(i.get("is_flatmate_listing") for i in cl)) else 0
+            if is_flat and not anomaly_tag:
+                anomaly_tag = "FLATMATE_AD"
 
             upsert_consolidated(conn, {
                 "uid": uid,
