@@ -39,6 +39,10 @@ ENV/
 *.db-journal
 *.db-wal
 *.db-shm
+*_backup*.db
+
+# Scratch and test files
+scratch/
 
 # Headless browser profiles
 /tmp/housing_uc_profile/
